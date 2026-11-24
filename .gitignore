@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+.venv/
+data/
+.databricks/
+spark-warehouse/
+metastore_db/
+derby.log
+*.tfstate
+*.tfstate.*
+.terraform/

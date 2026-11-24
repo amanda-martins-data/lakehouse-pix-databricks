@@ -1,0 +1,47 @@
+resources:
+  jobs:
+    pix_lakehouse:
+      name: pix-lakehouse
+      description: Extração da API do Banco Central e Medallion (Bronze, Silver, Gold) do Pix por município
+      # Sem cluster declarado: as tarefas rodam em computação serverless,
+      # a única disponível na Free Edition.
+      schedule:
+        # Dia 5 de cada mês, 06:00 em São Paulo: o mês anterior já fechou.
+        quartz_cron_expression: "0 0 6 5 * ?"
+        timezone_id: America/Sao_Paulo
+        pause_status: PAUSED   # ligar depois da primeira carga completa
+      max_concurrent_runs: 1
+      parameters:
+        - name: catalogo
+          default: ${var.catalogo}
+        # Vazios = os três meses mais recentes. Carga histórica: inicio=202011.
+        - name: inicio
+          default: ""
+        - name: fim
+          default: ""
+      tasks:
+        - task_key: setup
+          notebook_task:
+            notebook_path: ../notebooks/00_setup.py
+
+        - task_key: extracao
+          depends_on: [{task_key: setup}]
+          notebook_task:
+            notebook_path: ../notebooks/01_extracao.py
+            base_parameters:
+              pular: ${var.pular_extracao}
+
+        - task_key: bronze
+          depends_on: [{task_key: extracao}]
+          notebook_task:
+            notebook_path: ../notebooks/02_bronze.py
+
+        - task_key: silver
+          depends_on: [{task_key: bronze}]
+          notebook_task:
+            notebook_path: ../notebooks/03_silver.py
+
+        - task_key: gold
+          depends_on: [{task_key: silver}]
+          notebook_task:
+            notebook_path: ../notebooks/04_gold.py

@@ -1,0 +1,33 @@
+# Databricks Asset Bundle: o job e os notebooks como código, versionados no Git.
+# Validar:  databricks bundle validate -t free
+# Publicar: databricks bundle deploy -t free
+# Rodar:    databricks bundle run pix_lakehouse -t free
+bundle:
+  name: lakehouse-pix
+
+include:
+  - resources/*.yml
+
+variables:
+  catalogo:
+    description: Catálogo do Unity Catalog onde ficam os schemas pix_bronze, pix_silver e pix_gold
+    default: workspace
+  pular_extracao:
+    description: '"sim" quando os arquivos são enviados ao volume pelo script local'
+    default: nao
+
+targets:
+  # Etapa 1: Databricks Free Edition (gratuita, só computação serverless).
+  free:
+    mode: development
+    default: true
+    workspace:
+      host: https://SEU-WORKSPACE.cloud.databricks.com   # trocar pelo endereço do seu workspace
+
+  # Etapa 2: Azure Databricks, provisionado com Terraform (ver infra/azure, a criar).
+  azure:
+    mode: production
+    workspace:
+      host: https://adb-XXXXXXXXXXXXXXX.X.azuredatabricks.net
+    variables:
+      catalogo: pix_lakehouse
