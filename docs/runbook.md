@@ -26,26 +26,32 @@ databricks bundle deploy -t free
 databricks bundle run pix_lakehouse -t free
 ```
 
-Sem parâmetros, o Job extrai os três meses mais recentes. Para a carga
-histórica (o Pix começou em novembro de 2020):
+Sem parâmetros, o Job extrai os três meses mais recentes (no Azure; na Free
+Edition, ver o passo 4). Para a carga histórica (o Pix começou em novembro de 2020):
 
 ```bash
 databricks bundle run pix_lakehouse -t free --params inicio=202011
 ```
 
-### 4. Se o workspace não alcançar a API
+### 4. Levar os arquivos ao volume (Free Edition)
 
-A Free Edition só libera saída para domínios confiáveis. Se a tarefa
-`extracao` falhar com erro de conexão:
+A Free Edition só libera saída para domínios confiáveis, e `olinda.bcb.gov.br`
+não está entre eles (testado em 26/11/2026: `URLError`). Por isso o target
+`free` já vem com `pular_extracao: sim`, e os arquivos chegam ao volume por fora:
 
 ```bash
 pip install -r requirements-dev.txt
 python scripts/baixar_pix.py --inicio 202011 --fim 202611
 databricks fs cp -r data/raw/transacoes_municipio \
   dbfs:/Volumes/workspace/pix_bronze/landing/transacoes_municipio
-databricks bundle deploy -t free --var pular_extracao=sim
+databricks bundle deploy -t free
 databricks bundle run pix_lakehouse -t free
 ```
+
+Sem a CLI, dá para fazer tudo pela interface: criar uma pasta Git com o
+repositório, enviar os arquivos em **Catalog > pix_bronze > landing >
+Upload to this volume**, abrir a pasta no editor de bundle e clicar em
+**Deploy**. Foi assim a primeira carga.
 
 ### 5. Conferir
 

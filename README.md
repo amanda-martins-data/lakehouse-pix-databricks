@@ -11,9 +11,10 @@ novembro de 2020.
 Projeto 15 do meu portfólio de Engenharia e Arquitetura de Dados. Veja o
 [perfil completo](https://github.com/amanda-martins-data).
 
-> **Status:** em construção. Código, testes e documentação prontos; primeira
-> execução na Databricks Free Edition em andamento. A etapa no Azure Databricks
-> com Terraform vem no fechamento (ver [decisions/0001](decisions/0001-free-edition-primeiro-azure-no-fechamento.md)).
+> **Status:** rodando na Databricks Free Edition desde 26/11/2026, com a carga
+> histórica completa. Próximas etapas: dimensão de municípios compartilhada com
+> o Projeto 13 e o fechamento no Azure Databricks com Terraform (ver
+> [decisions/0001](decisions/0001-free-edition-primeiro-azure-no-fechamento.md)).
 
 ## Arquitetura
 
@@ -30,6 +31,26 @@ flowchart LR
 Um Job com cinco tarefas (setup, extração, bronze, silver, gold) roda todo
 dia 5, em computação serverless.
 
+## Primeira execução
+
+Carga histórica completa em 26/11/2026, pelo Job publicado com o bundle:
+
+| Camada | Tabela | Linhas |
+|---|---|---|
+| Bronze | `pix_bronze.transacoes_municipio` | 406.591 (73 meses, nov/2020 a nov/2026) |
+| Silver | `pix_silver.transacoes_municipio` | 406.591, quarentena vazia |
+| Gold | `pix_gold.pix_municipio_mes` | 406.591 |
+| Gold | `pix_gold.pix_uf_mes` | 2.044 (73 meses x 27 UFs e o grupo sem município) |
+
+As cinco tarefas rodaram em 2 minutos, em computação serverless. A soma da Gold
+bate com a Silver, e a Silver não tem chave repetida.
+
+![Primeira execução do Job](docs/img/primeira-execucao-job.jpg)
+
+O volume é pequeno para Spark (cerca de 180 MB em JSON). O objetivo aqui é a
+arquitetura: ingestão incremental, reprocessamento sem duplicar, quarentena,
+Job versionado e validação entre camadas.
+
 ## O que a fonte ensinou
 
 A documentação da API não conta tudo. Medi direto na fonte
@@ -42,6 +63,8 @@ A documentação da API não conta tudo. Medi direto na fonte
 | Uma linha **"N/D"** sem código soma **R$ 7,9 bi** no mês | Totais que não batem com o Banco Central | Linha mantida, em grupo próprio na Gold |
 | Código nulo na chave **duplica a linha** a cada `MERGE` | Totais inflando em silêncio | Chave substituta `municipio_chave` ([0003](decisions/0003-chave-substituta-para-municipio-nao-informado.md)) |
 | `$skip` devolve **erro 500**: a API não pagina | Mês cortado sem aviso | Um mês por requisição; falha se a resposta vier cheia |
+| A lista de municípios **cresce com o tempo** (5.568, 5.570, 5.571) | Regra fixa de "5.571 por mês" acusando erro em 59 meses | Validação por N/D única e municípios que não diminuem |
+| A Free Edition **não alcança a API** | Extração falhando no Job | Target `free` começa na Bronze; arquivos chegam ao volume por fora |
 
 ## Decisões
 

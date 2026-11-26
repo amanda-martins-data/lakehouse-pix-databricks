@@ -42,6 +42,6 @@ feitas = extract.extrair_periodo(inicio, fim, destino)
 for f in feitas:
     print(f"{f.ano_mes}: {f.linhas} linhas -> {f.arquivo}")
 
-# Um mês completo tem 5.572 linhas (5.571 municípios e a linha N/D). Bem menos indica falha da fonte.
+# Um mês tem entre 5.569 e 5.572 linhas (municípios e a linha N/D). Bem menos indica falha da fonte.
 suspeitos = [f for f in feitas if f.linhas < 5000]
 assert not suspeitos, f"meses com poucas linhas: {[(f.ano_mes, f.linhas) for f in suspeitos]}"

@@ -44,12 +44,22 @@ valor_silver = total(silver, F.col("vl_pagador_pf") + F.col("vl_pagador_pj"))
 assert total(spark.table(gold_municipio), "valor_pago") == valor_silver, "Gold por municipio diverge da Silver"
 assert total(spark.table(gold_uf), "valor_pago") == valor_silver, "Gold por UF diverge da Silver"
 
-# Todo mês fechado deve ter 5.571 municípios e a linha N/D.
-meses_incompletos = spark.sql(f"""
-    SELECT ano_mes, count(*) AS linhas FROM {tabela(catalogo, 'silver', 'transacoes_municipio')}
-    WHERE NOT mes_parcial GROUP BY ano_mes HAVING linhas < 5572
+# O número de municípios muda com o tempo (5.568 até 202503, 5.570 até 202509, 5.571 depois;
+# ver docs/achados-da-fonte.md). O que não pode acontecer: mês sem exatamente uma linha N/D,
+# ou um mês com menos municípios que o anterior, o que indicaria dado faltando.
+problemas = spark.sql(f"""
+    WITH m AS (
+        SELECT ano_mes,
+               count_if(municipio_chave = -1) AS linhas_nd,
+               count_if(municipio_chave <> -1) AS municipios
+        FROM {tabela(catalogo, 'silver', 'transacoes_municipio')} GROUP BY ano_mes)
+    SELECT * FROM (
+        SELECT ano_mes, linhas_nd, municipios,
+               lag(municipios) OVER (ORDER BY ano_mes) AS municipios_mes_anterior
+        FROM m)
+    WHERE linhas_nd <> 1 OR municipios < municipios_mes_anterior
 """).collect()
-print("meses fechados com menos de 5.572 linhas:", [(r.ano_mes, r.linhas) for r in meses_incompletos])
+assert not problemas, f"meses com N/D ausente ou repetido, ou com municipios a menos: {problemas}"
 
 display(spark.sql(f"""
     SELECT ano_mes, uf, round(valor_pago / 1e9, 2) AS valor_pago_bi, transacoes_pagas, mes_parcial

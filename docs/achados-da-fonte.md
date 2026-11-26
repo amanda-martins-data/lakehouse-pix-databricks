@@ -2,7 +2,9 @@
 
 Fonte: API OData do Banco Central, recurso `TransacoesPixPorMunicipio`
 ([dados abertos do Pix](https://dadosabertos.bcb.gov.br/dataset/pix)).
-Medições feitas em 24/11/2026, direto na API.
+Achados 1 a 4 e 7 medidos em 24/11/2026, direto na API. Achados 5, 6 e 8
+corrigidos ou descobertos na primeira carga completa, em 26/11/2026
+(73 meses, 406.591 linhas).
 
 ## 1. `DataBase` quer dizer "a partir de", não "o mês de"
 
@@ -42,8 +44,8 @@ meses mais recentes a cada execução, e o `MERGE` fica com a versão mais nova.
 
 ## 3. Uma linha sem município carrega bilhões
 
-Todo mês tem 5.572 linhas: 5.571 municípios e uma linha com `Municipio = "N/D"`,
-código do IBGE nulo e UF "NAO INFORMADO". Em novembro de 2026 (parcial), essa
+Todo mês tem exatamente uma linha com `Municipio = "N/D"`, código do IBGE nulo
+e UF "NAO INFORMADO", além das linhas dos municípios (ver o achado 5). Em novembro de 2026 (parcial), essa
 linha somava R$ 7,9 bilhões pagos.
 
 Descartar a linha por ter código nulo faria os totais por UF e Brasil não
@@ -63,21 +65,43 @@ Como o job reprocessa três meses por vez, a linha se multiplicaria em silêncio
 O teste `test_chave_nula_quebraria_o_merge` mostra a diferença com a amostra real:
 pela chave da fonte, 22 de 23 linhas casam; pela chave tratada, 23 de 23.
 
-## 5. São 5.571 municípios, não 5.570
+## 5. A lista de municípios muda com o tempo
 
-O número oficial de municípios é 5.570, mas a fonte traz 5.571 códigos.
-A tabela do IBGE usada no
-[Projeto 13](https://github.com/amanda-martins-data/pipeline-multi-fonte-dados-publicos)
-também tem 5.571 linhas, porque o distrito estadual de Fernando de Noronha tem
-código próprio; é a explicação mais provável aqui também, a confirmar na
-junção com o IBGE.
+A primeira versão deste documento dizia que todo mês tinha 5.571 municípios.
+A carga completa mostrou outra coisa:
+
+| Meses | Municípios | Linhas (com a N/D) |
+|---|---|---|
+| 202011 a 202503 (53 meses) | 5.568 | 5.569 |
+| 202504 a 202509 (6 meses) | 5.570 | 5.571 |
+| 202510 a 202611 (14 meses) | 5.571 | 5.572 |
+
+Três códigos só aparecem a partir de certo mês:
+
+| Código IBGE | Município | Primeiro mês |
+|---|---|---|
+| 2405306 | Januário Cicco (RN) | 202504 |
+| 2401305 | Campo Grande (RN) | 202504 |
+| 5101837 | Boa Esperança do Norte (MT) | 202510 |
+
+Boa Esperança do Norte é um município recente. Os dois do Rio Grande do Norte
+são municípios antigos; para onde iam as transações deles antes de abril de
+2025 a fonte não diz, e a hipótese mais provável é a linha N/D. Fernando de
+Noronha (2605459) aparece em todos os meses.
+
+**Tratamento:** a validação da Gold não exige um número fixo de linhas. Ela
+falha se um mês não tiver exatamente uma linha N/D ou se tiver menos
+municípios que o mês anterior, o que indicaria dado faltando. A comparação
+com a tabela de municípios do IBGE fica para a dimensão conformada com o
+[Projeto 13](https://github.com/amanda-martins-data/pipeline-multi-fonte-dados-publicos).
 
 ## 6. O primeiro mês é parcial por outro motivo
 
-O Pix começou a funcionar em 16/11/2020. Novembro de 2020 tem metade do mês
-e 5.569 linhas (provavelmente municípios sem nenhuma transação nas duas
-primeiras semanas), e o
-crescimento contra ele seria enganoso. A Silver o marca como parcial.
+O Pix começou a funcionar em 16/11/2020. Novembro de 2020 tem só metade do
+mês, e o crescimento contra ele seria enganoso. A Silver o marca como parcial.
+(Ele tem 5.569 linhas como os meses seguintes; a primeira versão deste
+documento atribuía o número a municípios sem transação, o que a carga
+completa desmentiu.)
 
 ## 7. A API não pagina
 
@@ -87,3 +111,14 @@ mensagem "Erro desconhecido". Não há como buscar uma resposta em partes.
 **Tratamento:** um mês por requisição (no máximo 5.572 linhas) com `$top=10000`.
 Se a resposta vier com 10.000 linhas, o extrator falha em vez de gravar um mês
 possivelmente cortado (`test_falha_se_a_resposta_vier_cheia`).
+
+## 8. A Free Edition não alcança a API
+
+Na Databricks Free Edition, a extração falhou com `URLError`: o workspace só
+libera saída para alguns domínios, e `olinda.bcb.gov.br` não está entre eles
+(testado em 26/11/2026).
+
+**Tratamento:** no target `free` do bundle, `pular_extracao` vale `sim`. Os
+arquivos chegam ao volume por fora, no mesmo formato e com o mesmo nome que o
+extrator gravaria, e o Job começa na Bronze. No Azure Databricks a extração
+roda dentro do Job.
