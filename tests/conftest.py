@@ -38,3 +38,14 @@ def amostra():
     """23 linhas reais da API (Acre e a linha N/D), extraídas em 24/11/2026."""
     with (FIXTURES / "pix_amostra_real.jsonl").open(encoding="utf-8") as f:
         return [json.loads(l) for l in f]
+
+
+@pytest.fixture(scope="session")
+def dim(spark):
+    """Dimensão montada com a referência real do IBGE: os 22 municípios do Acre.
+
+    O CSV de estados mantém o BOM do arquivo original, de propósito.
+    """
+    from pix_lakehouse import transform
+    ler = lambda nome: spark.read.option("header", True).option("encoding", "UTF-8").csv(str(FIXTURES / nome))
+    return transform.dim_municipio(ler("municipios_ibge_acre.csv"), ler("estados_ibge.csv"))

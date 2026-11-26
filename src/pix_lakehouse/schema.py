@@ -81,3 +81,13 @@ PRIMEIRO_MES = 202011
 def tabela(catalogo: str, camada: str, nome: str) -> str:
     """Nome completo de uma tabela no Unity Catalog, por exemplo workspace.pix_silver.transacoes."""
     return f"{catalogo}.pix_{camada}.{nome}"
+
+
+# Tabela de referência do IBGE usada no Projeto 13 (pipeline-multi-fonte-dados-publicos),
+# a mesma fonte, para que os dois projetos compartilhem a dimensão de municípios.
+REFERENCIA_BASE = "https://raw.githubusercontent.com/kelvins/municipios-brasileiros/main/csv/"
+REFERENCIA_ARQUIVOS = ("municipios.csv", "estados.csv")
+
+# Códigos do Pix que a referência do IBGE não tem, conferidos em decisions/0005.
+# A Gold falha se aparecer um código fora desta lista.
+CODIGOS_FORA_DA_REFERENCIA: frozenset[int] = frozenset()

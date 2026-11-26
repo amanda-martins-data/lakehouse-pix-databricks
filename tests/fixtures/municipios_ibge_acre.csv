@@ -1,0 +1,23 @@
+codigo_ibge,nome,latitude,longitude,capital,codigo_uf,siafi_id,ddd,fuso_horario
+1200013,Acrelândia,-9.82581,-66.8972,0,12,0643,68,America/Rio_Branco
+1200054,Assis Brasil,-10.9298,-69.5738,0,12,0157,68,America/Rio_Branco
+1200104,Brasiléia,-10.995,-68.7497,0,12,0105,68,America/Rio_Branco
+1200138,Bujari,-9.81528,-67.955,0,12,0645,68,America/Rio_Branco
+1200179,Capixaba,-10.566,-67.686,0,12,0647,68,America/Rio_Branco
+1200203,Cruzeiro do Sul,-7.62762,-72.6756,0,12,0107,68,America/Rio_Branco
+1200252,Epitaciolândia,-11.0188,-68.7341,0,12,0651,68,America/Rio_Branco
+1200302,Feijó,-8.17054,-70.351,0,12,0113,68,America/Rio_Branco
+1200328,Jordão,-9.1908,-71.9503,0,12,0653,68,America/Rio_Branco
+1200336,Mâncio Lima,-7.61657,-72.8997,0,12,0109,68,America/Rio_Branco
+1200344,Manoel Urbano,-8.83291,-69.2679,0,12,0155,68,America/Rio_Branco
+1200351,Marechal Thaumaturgo,-8.93898,-72.7997,0,12,0655,68,America/Rio_Branco
+1200385,Plácido de Castro,-10.2806,-67.1371,0,12,0151,68,America/Rio_Branco
+1200807,Porto Acre,-9.58138,-67.5478,0,12,0649,68,America/Rio_Branco
+1200393,Porto Walter,-8.26323,-72.7537,0,12,0657,68,America/Rio_Branco
+1200401,Rio Branco,-9.97499,-67.8243,1,12,0139,68,America/Rio_Branco
+1200427,Rodrigues Alves,-7.73864,-72.661,0,12,0659,68,America/Rio_Branco
+1200435,Santa Rosa do Purus,-9.44652,-70.4902,0,12,0661,68,America/Rio_Branco
+1200500,Sena Madureira,-9.06596,-68.6571,0,12,0145,68,America/Rio_Branco
+1200450,Senador Guiomard,-10.1497,-67.7362,0,12,0153,68,America/Rio_Branco
+1200609,Tarauacá,-8.15697,-70.7722,0,12,0147,68,America/Rio_Branco
+1200708,Xapuri,-10.6516,-68.4969,0,12,0149,68,America/Rio_Branco

@@ -2,6 +2,7 @@
 # MAGIC %md
 # MAGIC # 04 · Gold e conferências
 # MAGIC Reconstrói as tabelas Gold a partir da Silver e confere que nada se perdeu no caminho.
+# MAGIC A Gold por município recebe nome oficial, sigla da UF e coordenadas da `dim_municipio`.
 
 # COMMAND ----------
 
@@ -12,7 +13,7 @@ from pyspark.sql import functions as F
 
 sys.path.append(os.path.abspath("../src"))
 from pix_lakehouse import transform  # noqa: E402
-from pix_lakehouse.schema import tabela  # noqa: E402
+from pix_lakehouse.schema import CODIGOS_FORA_DA_REFERENCIA, tabela  # noqa: E402
 
 # COMMAND ----------
 
@@ -20,13 +21,14 @@ dbutils.widgets.text("catalogo", "workspace")
 catalogo = dbutils.widgets.get("catalogo")
 
 silver = spark.table(tabela(catalogo, "silver", "transacoes_municipio"))
+dim = spark.table(tabela(catalogo, "silver", "dim_municipio"))
 gold_municipio = tabela(catalogo, "gold", "pix_municipio_mes")
 gold_uf = tabela(catalogo, "gold", "pix_uf_mes")
 
 # COMMAND ----------
 
 # Sem particionamento: são cerca de 400 mil linhas, e partição por mês criaria ~70 arquivos pequenos.
-(transform.gold_municipio_mes(silver).write.mode("overwrite")
+(transform.gold_municipio_mes_enriquecida(silver, dim).write.mode("overwrite")
  .option("overwriteSchema", "true").saveAsTable(gold_municipio))
 transform.gold_uf_mes(silver).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(gold_uf)
 
@@ -60,6 +62,13 @@ problemas = spark.sql(f"""
     WHERE linhas_nd <> 1 OR municipios < municipios_mes_anterior
 """).collect()
 assert not problemas, f"meses com N/D ausente ou repetido, ou com municipios a menos: {problemas}"
+
+# Conformidade com a dimensão (decisions/0005): código do Pix sem par na referência do IBGE.
+# Não vai para a quarentena; a lista é conhecida e o notebook falha se aparecer um código novo.
+fora = transform.codigos_fora_da_dimensao(silver, dim).collect()
+print("codigos do Pix fora da referencia do IBGE:", [(r.municipio_chave, r.municipio, r.uf, r.primeiro_mes) for r in fora])
+novos_fora = {r.municipio_chave for r in fora} - CODIGOS_FORA_DA_REFERENCIA
+assert not novos_fora, f"codigos novos fora da referencia do IBGE: {sorted(novos_fora)}"
 
 display(spark.sql(f"""
     SELECT ano_mes, uf, round(valor_pago / 1e9, 2) AS valor_pago_bi, transacoes_pagas, mes_parcial

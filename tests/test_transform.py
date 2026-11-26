@@ -127,3 +127,44 @@ def test_gold_uf_mantem_a_linha_sem_municipio(spark, amostra):
         F.sum(F.col("vl_pagador_pf") + F.col("vl_pagador_pj"))).first()[0]
     total_gold = g.agg(F.sum("valor_pago")).first()[0]
     assert total_gold == total_silver   # nada se perde na agregação
+
+
+# --- Dimensão de municípios (decisions/0005) ---
+
+def test_dimensao_tem_o_membro_nao_informado_com_a_chave_da_silver(dim):
+    nd = dim.filter(F.col("municipio_chave") == MUNICIPIO_NAO_INFORMADO).collect()
+    assert len(nd) == 1 and nd[0].municipio_ibge is None
+    assert dim.count() == 23  # 22 municípios do Acre e o membro "não informado"
+
+
+def test_bom_do_csv_de_estados_nao_apaga_a_uf(dim):
+    # Sem tratar o BOM, a coluna codigo_uf não casa e a sigla da UF fica nula.
+    siglas = {r.uf_sigla for r in dim.filter(F.col("municipio_ibge").isNotNull()).collect()}
+    assert siglas == {"AC"}
+
+
+def test_amostra_real_casa_inteira_com_a_dimensao(spark, amostra, dim):
+    s, _ = t.silver(bronze(spark, amostra))
+    assert t.codigos_fora_da_dimensao(s, dim).count() == 0
+
+
+def test_codigo_ausente_na_referencia_e_listado_e_nao_some_da_gold(spark, amostra, dim):
+    s, _ = t.silver(bronze(spark, amostra))
+    ausente = s.filter(F.col("municipio_informado")).first().municipio_chave
+    dim_incompleta = dim.filter(F.col("municipio_chave") != ausente)
+
+    fora = t.codigos_fora_da_dimensao(s, dim_incompleta).collect()
+    assert [r.municipio_chave for r in fora] == [ausente]
+
+    gold = t.gold_municipio_mes_enriquecida(s, dim_incompleta)
+    assert gold.count() == s.count()  # junção à esquerda: o valor do Pix não se perde
+    assert gold.filter(F.col("municipio_chave") == ausente).first().municipio_nome is None
+
+
+def test_gold_enriquecida_traz_nome_oficial_e_coordenadas(spark, amostra, dim):
+    s, _ = t.silver(bronze(spark, amostra))
+    pc = t.gold_municipio_mes_enriquecida(s, dim).filter(F.col("municipio_ibge") == 1200385).first()
+    # A fonte escreve "PLÁCIDO DE CASTRO"; a dimensão traz o nome oficial e a posição.
+    assert pc.municipio == "PLÁCIDO DE CASTRO" and pc.municipio_nome == "Plácido de Castro"
+    assert pc.uf_sigla == "AC" and not pc.capital
+    assert -11 < pc.latitude < -9 and -68 < pc.longitude < -66

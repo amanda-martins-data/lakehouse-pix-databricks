@@ -121,3 +121,51 @@ def gold_uf_mes(silver_df: DataFrame) -> DataFrame:
                  F.sum(F.col("qt_pagador_pf") + F.col("qt_pagador_pj")).alias("transacoes_pagas"),
                  F.count("*").alias("municipios"),
                  F.max(F.col("mes_parcial").cast("int")).cast("boolean").alias("mes_parcial")))
+
+
+# --- Dimensão de municípios conformada com o Projeto 13 (decisions/0005) ---
+
+def dim_municipio(municipios: DataFrame, estados: DataFrame) -> DataFrame:
+    """Dimensão de municípios a partir da tabela de referência do IBGE usada no Projeto 13.
+
+    Uma linha por código do IBGE, mais o membro "não informado" com a mesma chave
+    substituta da Silver (-1), para que a linha N/D do Pix também tenha par.
+    `municipios` e `estados` são os CSVs de kelvins/municipios-brasileiros.
+    """
+    # O CSV de estados vem com BOM; o nome da primeira coluna chega como "﻿codigo_uf".
+    estados = estados.toDF(*[c.lstrip("﻿") for c in estados.columns])
+    municipios = municipios.toDF(*[c.lstrip("﻿") for c in municipios.columns])
+    dim = (municipios.alias("m")
+           .join(estados.alias("e"), F.col("m.codigo_uf").cast("int") == F.col("e.codigo_uf").cast("int"), "left")
+           .select(
+               F.col("m.codigo_ibge").cast("int").alias("municipio_chave"),
+               F.col("m.codigo_ibge").cast("int").alias("municipio_ibge"),
+               F.col("m.nome").alias("municipio_nome"),
+               F.col("e.uf").alias("uf_sigla"),
+               F.col("e.nome").alias("uf_nome"),
+               F.col("e.regiao").alias("regiao_nome"),
+               F.col("m.latitude").cast("double").alias("latitude"),
+               F.col("m.longitude").cast("double").alias("longitude"),
+               (F.col("m.capital").cast("int") == 1).alias("capital"),
+           ))
+    nao_informado = dim.sparkSession.createDataFrame(
+        [(MUNICIPIO_NAO_INFORMADO, None, "Nao informado", None, "NAO INFORMADO", None, None, None, False)],
+        dim.schema)
+    return dim.unionByName(nao_informado)
+
+
+def codigos_fora_da_dimensao(fato: DataFrame, dim: DataFrame) -> DataFrame:
+    """Chaves do fato sem par na dimensão, com o nome que a fonte usa e os meses em que aparecem.
+
+    Não vai para a quarentena: o dado do Pix é válido, quem está atrasada é a
+    referência (decisions/0005). O notebook mostra a lista e falha se ela crescer.
+    """
+    return (fato.join(dim.select("municipio_chave"), "municipio_chave", "left_anti")
+            .groupBy("municipio_chave", "municipio", "uf")
+            .agg(F.min("ano_mes").alias("primeiro_mes"), F.countDistinct("ano_mes").alias("meses")))
+
+
+def gold_municipio_mes_enriquecida(silver_df: DataFrame, dim: DataFrame) -> DataFrame:
+    """Gold por município e mês com nome oficial, sigla da UF e coordenadas da dimensão."""
+    atributos = dim.select("municipio_chave", "municipio_nome", "uf_sigla", "latitude", "longitude", "capital")
+    return gold_municipio_mes(silver_df).join(atributos, "municipio_chave", "left")
