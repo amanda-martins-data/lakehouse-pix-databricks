@@ -23,6 +23,10 @@ targets:
     default: true
     workspace:
       host: https://dbc-41afa8a3-e2ae.cloud.databricks.com   # para rodar no seu, troque pelo endereço do seu workspace
+    variables:
+      # A Free Edition não alcança olinda.bcb.gov.br (URLError, testado em 26/11/2026).
+      # Os arquivos chegam ao volume por fora (scripts/baixar_pix.py) e o Job começa na Bronze.
+      pular_extracao: sim
 
   # Etapa 2: Azure Databricks, provisionado com Terraform (ver infra/azure, a criar).
   azure:
